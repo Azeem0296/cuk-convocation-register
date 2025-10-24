@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { FaCheckCircle } from 'react-icons/fa'; // --- ADDED: Import the checkmark icon
+import { FaArrowRight } from 'react-icons/fa';
 
 // Define a type for the form message for better clarity
 type FormMessage = {
@@ -42,10 +43,38 @@ const RegistrationPage: React.FC = () => {
     /**
      * Handles changes to the Guests input.
      */
+    /**
+     * Handles changes to the Guests input.
+     * Restricts to 1 digit and validates in real-time.
+     */
     const handleGuestsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
+        
+        // Remove any non-digit characters
         const numericValue = value.replace(/[^0-9]/g, '');
-        setGuests(numericValue.slice(0, 1));
+        
+        // Truncate to 1 digit
+        const finalValue = numericValue.slice(0, 1);
+
+        // Update the state immediately so the user sees the digit
+        setGuests(finalValue);
+
+        // --- Real-time Validation Logic ---
+        if (finalValue === '') {
+            // If the field is empty, clear any errors.
+            // The submit handler will catch it if it's still empty.
+            setGuestsError('');
+        } else {
+            const guestsCount = parseInt(finalValue, 10);
+            
+            if (guestsCount > 3) {
+                // If the number is > 3, show the error immediately
+                setGuestsError('Number of guests must be between 0 and 3.');
+            } else {
+                // Otherwise, the number is valid (0, 1, 2, or 3), so clear the error.
+                setGuestsError('');
+            }
+        }
     };
 
         /**
@@ -121,20 +150,22 @@ const RegistrationPage: React.FC = () => {
             }
         }
 
-        // --- 5. Handle Final Outcome ---
+       // --- 5. Handle Final Outcome ---
         if (isValid) {
             // --- SUCCESS ---
-            setFormMessage({ text: 'Registration Successful!', isSuccess: true });
+            // 1. SET LOADING STATE FIRST
             setIsLoading(true);
+            setFormMessage(null); // Clear any old errors
 
-            // Simulate API call
+            // 2. Simulate API call
             setTimeout(() => {
-                // In a real app, you would send data and then redirect on success.
-                // The success screen will remain visible until redirection.
                 console.log('Form data submitted:', { name, rollNumber, guests });
+
+                // 3. AFTER API call is "done", set success message
                 setIsLoading(false); 
-                // --- CHANGED: Removed the form reset logic from here so the success message persists.
-            }, 1500);
+                setFormMessage({ text: 'Registration Successful!', isSuccess: true });
+
+            }, 2000); // Keep simulation time (e.g., 2 seconds)
 
         } else {
             // --- FAILURE ---
@@ -282,27 +313,20 @@ const RegistrationPage: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Submit Button */}
-                         {/* Submit Button */}
-                        {/* Submit Button */}
-                           {/* Submit Button */}
-                            {/* Submit Button */}
+                          {/* Submit Button */}
                             <div className="mt-8">
-                                <button 
+                                <button
                                     type="submit"
-                                    // Use the new variable
                                     disabled={isDisabled}
-                                    
-                                    // --- CHANGED: Using conditional classes ---
                                     className={`
-                                        w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-md text-base font-medium text-white
-                                        focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
+                                        w-full flex justify-center py-3 px-4 border-2 rounded-md shadow-sm text-base font-medium
+                                        focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-transparent
                                         transition-all duration-300 ease-in-out
-                                        ${isDisabled 
-                                            // Classes when DISABLED
-                                            ? 'bg-gradient-to-r from-gray-400 to-gray-500 shadow-none cursor-auto'
-                                            // Classes when ENABLED
-                                            : 'bg-gradient-to-r from-blue-500 to-blue-400 hover:from-blue-500 hover:to-blue-500 transform hover:-translate-y-0.5 hover:cursor-pointer'
+                                        ${isDisabled
+                                            // --- DISABLED STYLE ---
+                                            ? 'border-gray-600 text-gray-500 cursor-default'
+                                            // --- ENABLED STYLE ---
+                                            : 'border-white text-white hover:text-white focus:ring-white transform hover:-translate-y-0.5'
                                         }
                                     `}
                                 >
