@@ -67,9 +67,9 @@ const RegistrationPage: React.FC = () => {
         } else {
             const guestsCount = parseInt(finalValue, 10);
             
-            if (guestsCount > 3) {
+            if (guestsCount > 2) {
                 // If the number is > 3, show the error immediately
-                setGuestsError('Number of guests must be between 0 and 3.');
+                setGuestsError('Number of guests must be between 0 and 2.');
             } else {
                 // Otherwise, the number is valid (0, 1, 2, or 3), so clear the error.
                 setGuestsError('');
@@ -141,12 +141,12 @@ const RegistrationPage: React.FC = () => {
         // --- 4. Validate Number of Guests ---
         if (guests === '') {
             isValid = false;
-            setGuestsError('Please enter the number of guests (0-3).');
+            setGuestsError('Please enter the number of guests (0-2).');
         } else {
             const guestsCount = parseInt(guests, 10);
-            if (isNaN(guestsCount) || guestsCount < 0 || guestsCount > 3) {
+            if (isNaN(guestsCount) || guestsCount < 0 || guestsCount > 2) {
                 isValid = false;
-                setGuestsError('Number of guests must be between 0 and 3.');
+                setGuestsError('Number of guests must be between 0 and 2.');
             }
         }
 
@@ -202,19 +202,26 @@ const RegistrationPage: React.FC = () => {
                 {/* If form is successful, show the success view. Otherwise, show the form. */}
                 {formMessage && formMessage.isSuccess ? (
                     
-                    // --- ADDED: Success View ---
-                    <div className="text-center text-white py-8 px-4 animate-fade-in">
-                        <FaCheckCircle 
-                            className="mx-auto mb-6" 
-                            size={80} 
-                            // A nice green color for success
-                            color="#34D399" 
-                        />
+                    // --- SUCCESS VIEW (NOW WITH QR CODE) ---
+                    <div className="text-center text-white py-8 px-4">
+                        
+                        {/* --- CHANGED: Replaced icon with QR Code Image --- */}
+                        <div className="flex justify-center mb-6">
+                            <img 
+                                src="/qr-code.png" // This points to your /public/qr-code.png
+                                alt="Convocation Entry QR Code" 
+                                // Added white background & padding to make the QR scannable
+                                className="bg-white p-3 rounded-lg shadow-xl"
+                                width={180} // Set a good size for scannability
+                                height={180}
+                            />
+                        </div>
+                        
                         <h2 className="text-3xl font-bold mb-2">
                             Registration Successful!
                         </h2>
                         <p className="text-gray-200 text-lg">
-                            Your details have been recorded. You will receive mail soon for your pass.
+                            Please take a screenshot of this QR code for entry and this will send to your mail also.
                         </p>
                     </div>
 
@@ -293,7 +300,7 @@ const RegistrationPage: React.FC = () => {
                                 {/* Number of Guests Field */}
                                 <div>
                                     <label htmlFor="guests" className="block text-sm font-medium text-gray-200 mb-1">
-                                        Number of Guests (Max 3)
+                                        Number of Guests (Max 2)
                                     </label>
                                     <input 
                                         type="number"
