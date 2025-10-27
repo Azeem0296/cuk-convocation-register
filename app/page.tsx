@@ -94,9 +94,8 @@ const LoginPageClient: React.FC = () => {
                     await supabase.auth.signOut();
                     console.log("User signed out due to catch block error.");
                 } finally {
-                    // Don't set loading false immediately if redirecting,
-                    // but set it if staying on page due to error
-                    if (localError) setIsLoading(false);
+                    // --- ALWAYS stop loading when the verification process finishes ---
+                    setIsLoading(false);
                     console.log("Verification process finished.");
                 }
             } else {

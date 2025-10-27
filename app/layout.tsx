@@ -27,14 +27,14 @@ export const metadata: Metadata = {
   openGraph: {
     title: "CUK Convocation 2025 Registration", // Title shown when shared
     description: "Register online for the Central University of Kerala Convocation 2025.", // Description shown when shared
-    url: "https://your-website-url.com", // *** REPLACE with your actual deployed website URL ***
+    url: "https://cukconvocation.vercel.app", // *** REPLACE with your actual deployed website URL ***
     siteName: "CUK Convocation Registration",
     images: [ // An array of images to use for previews
       {
-        url: "https://your-website-url.com/og-image.png", // *** REPLACE with a URL to a preview image (e.g., 1200x630px) ***
+        url: "https://cukconvocation.vercel.app/ogimage.png", // *** REPLACE with a URL to a preview image (e.g., 1200x630px) ***
         width: 1200,
         height: 630,
-        alt: "Central University of Kerala Logo",
+        alt: "Central University of Kerala Convocation",
       },
       // You can add more image sizes if needed
     ],
