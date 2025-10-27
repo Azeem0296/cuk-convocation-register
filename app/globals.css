@@ -24,3 +24,10 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+
+.qr-wrapper svg {
+  width: 100% !important;
+  height: auto !important;
+  max-width: 100%;
+}
