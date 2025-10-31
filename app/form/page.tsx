@@ -8,27 +8,31 @@ import { supabase } from '@/lib/supabaseClient';
 type FormMessage = { text: string; isSuccess: boolean } | null;
 
 const RegistrationPage: React.FC = () => {
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [department, setDepartment] = useState('');
-  const [rollNumber, setRollNumber] = useState('');
+  const [fullName, setFullName] = useState<string>('');
+  const [email, setEmail] = useState<string>('');
+  const [department, setDepartment] = useState<string>('');
+  const [rollNumber, setRollNumber] = useState<string>('');
 
-  // ✅ guests now supports null
   const [guests, setGuests] = useState<number | null>(null);
-  const [guestsError, setGuestsError] = useState('');
+  const [guestsError, setGuestsError] = useState<string>('');
+
+  // guardian fields
+  const [guardian1, setGuardian1] = useState<string>('');
+  const [guardian2, setGuardian2] = useState<string>('');
 
   const [formMessage, setFormMessage] = useState<FormMessage>(null);
-  const [infoMessage, setInfoMessage] = useState('');
-  const [isFetchingProfile, setIsFetchingProfile] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isAlreadyRegistered, setIsAlreadyRegistered] = useState(false);
+  const [infoMessage, setInfoMessage] = useState<string>('');
+  const [isFetchingProfile, setIsFetchingProfile] = useState<boolean>(true);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isAlreadyRegistered, setIsAlreadyRegistered] = useState<boolean>(false);
 
   const router = useRouter();
 
-  // ✅ Fetch profile
+  // Fetch profile
   useEffect(() => {
     const loadProfile = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data } = await supabase.auth.getSession();
+      const session = (data as any)?.session;
       if (!session) return router.push('/');
 
       try {
@@ -45,23 +49,25 @@ const RegistrationPage: React.FC = () => {
         );
 
         const profile = await res.json();
-        if (!res.ok) throw new Error(profile.error);
+        if (!res.ok) throw new Error(profile?.error || 'Failed to fetch profile');
 
-        setFullName(profile.name || '');
-        setEmail(profile.email || '');
-        setRollNumber(profile.roll_no || '');
-        setDepartment(profile.dept || '');
+        setFullName(profile?.name ?? '');
+        setEmail(profile?.email ?? '');
+        setRollNumber(profile?.roll_no ?? '');
+        setDepartment(profile?.dept ?? '');
 
-        if (profile.is_registered) {
+        if (profile?.is_registered) {
           setIsAlreadyRegistered(true);
-          setGuests(profile.guest_count ?? 0);
+          setGuests(profile?.guest_count ?? 0);
+          setGuardian1(profile?.guardian1 ?? '');
+          setGuardian2(profile?.guardian2 ?? '');
           setFormMessage({ text: 'Registration Data Loaded', isSuccess: true });
         } else {
-          setGuests(null); // ✅ new user default null
+          setGuests(null);
         }
       } catch (err: any) {
         await supabase.auth.signOut();
-        router.push(`/?error=${encodeURIComponent(err.message)}`);
+        router.push(`/?error=${encodeURIComponent(err?.message ?? 'Unknown error')}`);
       } finally {
         setIsFetchingProfile(false);
       }
@@ -70,7 +76,7 @@ const RegistrationPage: React.FC = () => {
     loadProfile();
   }, [router]);
 
-  // ✅ Guest input handler (null when empty)
+  // Guest handler + clear guardian fields as needed
   const handleGuestsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (isAlreadyRegistered) return;
 
@@ -79,6 +85,8 @@ const RegistrationPage: React.FC = () => {
     if (raw === '') {
       setGuests(null);
       setGuestsError('');
+      setGuardian1('');
+      setGuardian2('');
       return;
     }
 
@@ -87,14 +95,23 @@ const RegistrationPage: React.FC = () => {
     if (isNaN(count) || count < 0 || count > 2) {
       setGuests(null);
       setGuestsError('Number of guests must be between 0 and 2.');
+      setGuardian1('');
+      setGuardian2('');
       return;
     }
 
     setGuests(count);
     setGuestsError('');
+
+    if (count === 0) {
+      setGuardian1('');
+      setGuardian2('');
+    } else if (count === 1) {
+      setGuardian2('');
+    }
   };
 
-  // ✅ Submit handler
+  // Submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isAlreadyRegistered || isFetchingProfile || isSubmitting) return;
@@ -104,7 +121,8 @@ const RegistrationPage: React.FC = () => {
       return;
     }
 
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data } = await supabase.auth.getSession();
+    const session = (data as any)?.session;
     if (!session) return router.push('/');
 
     setIsSubmitting(true);
@@ -118,7 +136,11 @@ const RegistrationPage: React.FC = () => {
             apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
             Authorization: `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ guest_count: guests }),
+          body: JSON.stringify({
+            guest_count: guests,
+            guest_1_name: guardian1 || null,
+            guest_2_name: guardian2 || null,
+          }),
         }
       );
 
@@ -126,29 +148,31 @@ const RegistrationPage: React.FC = () => {
         router.push('/your-ticket');
       } else {
         const data = await res.json().catch(() => null);
-        setFormMessage({
-          text: data?.error || 'Registration failed.',
-          isSuccess: false,
-        });
+        setFormMessage({ text: data?.error || 'Registration failed.', isSuccess: false });
       }
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // ✅ Form button rules
+  // typed profile fields array
+  const profileFields: { label: string; value: string }[] = [
+    { label: 'Full Name', value: fullName },
+    { label: 'Department', value: department },
+    { label: 'Email', value: email },
+    { label: 'Roll Number', value: rollNumber },
+  ];
+
   const isFormValid =
     guests !== null &&
     guests >= 0 &&
     guests <= 2 &&
-    fullName &&
-    email &&
-    rollNumber &&
-    department;
+    fullName.trim() !== '' &&
+    email.trim() !== '' &&
+    rollNumber.trim() !== '' &&
+    department.trim() !== '';
 
-  const disableBtn =
-    isFetchingProfile || isSubmitting || !isFormValid || isAlreadyRegistered;
-
+  const disableBtn = isFetchingProfile || isSubmitting || !isFormValid || isAlreadyRegistered;
 
   return (
     <div
@@ -158,13 +182,9 @@ const RegistrationPage: React.FC = () => {
       <div className="absolute inset-0 bg-black/50"></div>
 
       <div className="relative z-10 w-full max-w-lg p-6 sm:p-10 bg-black/30 backdrop-blur-lg rounded-xl shadow-xl border border-white/20">
-
-        {/* Header */}
         <div className="text-center mb-8">
           <img src="/cuk-logo.png" alt="CUK" className="mx-auto mb-4 w-20 h-20 rounded-full" />
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">
-            Central University of Kerala
-          </h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">Central University of Kerala</h1>
           <p className="text-gray-200 mt-2">Convocation 2025 Registration</p>
         </div>
 
@@ -179,24 +199,15 @@ const RegistrationPage: React.FC = () => {
             </div>
           )}
 
-          {isFetchingProfile && (
-            <p className="text-center text-gray-200">Loading...</p>
-          )}
+          {isFetchingProfile && <p className="text-center text-gray-200">Loading...</p>}
 
           {!isFetchingProfile && (
             <div className="space-y-5">
-
-              {/* Disabled profile fields */}
-              {[
-                ['Full Name', fullName],
-                ['Department', department],
-                ['Email', email],
-                ['Roll Number', rollNumber]
-              ].map(([label, val]) => (
+              {profileFields.map(({ label, value }) => (
                 <div key={label}>
                   <label className="block text-sm text-gray-200 mb-1">{label}</label>
                   <input
-                    value={val}
+                    value={String(value)}
                     readOnly
                     disabled
                     className="w-full px-4 py-2 bg-gray-800 text-gray-400 border border-gray-600 rounded cursor-not-allowed"
@@ -204,7 +215,6 @@ const RegistrationPage: React.FC = () => {
                 </div>
               ))}
 
-              {/* ✅ Guests field */}
               <div>
                 <label className="block text-sm text-gray-200 mb-1">Number of Guests (Max 2)</label>
                 <input
@@ -217,16 +227,56 @@ const RegistrationPage: React.FC = () => {
                 />
                 {guestsError && <p className="text-red-400 text-xs mt-1">{guestsError}</p>}
               </div>
+
+              {/* Guardian fields conditionally shown */}
+              {guests === 1 && (
+                <div>
+                  <label className="block text-sm text-gray-200 mb-1">Guardian Name 1</label>
+                  <input
+                    type="text"
+                    value={guardian1}
+                    onChange={(e) => setGuardian1(e.target.value)}
+                    className="w-full px-4 py-2 bg-gray-700 text-white border border-gray-600 rounded"
+                    placeholder="Enter Guardian Name"
+                  />
+                </div>
+              )}
+
+              {guests === 2 && (
+                <>
+                  <div>
+                    <label className="block text-sm text-gray-200 mb-1">Guardian Name 1</label>
+                    <input
+                      type="text"
+                      value={guardian1}
+                      onChange={(e) => setGuardian1(e.target.value)}
+                      className="w-full px-4 py-2 bg-gray-700 text-white border border-gray-600 rounded"
+                      placeholder="Enter Guardian Name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm text-gray-200 mb-1">Guardian Name 2</label>
+                    <input
+                      type="text"
+                      value={guardian2}
+                      onChange={(e) => setGuardian2(e.target.value)}
+                      className="w-full px-4 py-2 bg-gray-700 text-white border border-gray-600 rounded"
+                      placeholder="Enter Guardian Name"
+                    />
+                  </div>
+                </>
+              )}
             </div>
           )}
 
           {!isFetchingProfile && !isAlreadyRegistered && (
-           <button
-            type="submit"
-            className="w-full mt-6 py-3 rounded text-white font-medium bg-blue-600 hover:bg-blue-700"
-            >
-            {isSubmitting ? 'Processing...' : 'Register'}
-          </button> 
+            <button
+              type="submit"
+              className="w-full mt-6 py-3 rounded text-white font-medium bg-blue-600 hover:bg-blue-700"
+              >
+              {isSubmitting ? 'Processing...' : 'Register'}
+            </button>
           )}
         </form>
       </div>
