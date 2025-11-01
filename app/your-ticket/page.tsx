@@ -16,6 +16,8 @@ const YourTicketPage: React.FC = () => {
     const [studentName, setStudentName] = useState('');
     const [studentEmail, setStudentEmail] = useState(''); // Store email for PDF
     const [studentRollNo, setStudentRollNo] = useState(''); // Store roll no for PDF
+    const [guestOne, setGuestOne] = useState(''); // Store roll no for PDF
+    const [guestTwo, setGuestTwo] = useState(''); // Store roll no for PDF
     const [passId, setPassId] = useState<string | null>(null); // Store passId if needed later
 
     const router = useRouter();
@@ -103,6 +105,8 @@ const YourTicketPage: React.FC = () => {
 
                     // --- Store fetched data ---
                     setStudentName(qrData.name);
+                    setGuestOne(qrData.guest_1_name);
+                    setGuestTwo(qrData.guest_2_name);
                     setStudentEmail(qrData.email); // Store for PDF
                     setStudentRollNo(qrData.roll_no); // Store for PDF
                     setQrSvgString(qrData.qrSvgString); // Store the SVG STRING
@@ -127,124 +131,152 @@ const YourTicketPage: React.FC = () => {
     }, [router]); // Run on mount and if router changes
 
 
-const generatePdf = async () => {
-  try {
-    if (!qrSvgString || !studentName || !studentEmail || !studentRollNo) {
-      setError("Cannot generate PDF: Missing required information.");
-      return;
-    }
-    setError(null);
+    const generatePdf = async () => {
+        try {
+            if (!qrSvgString || !studentName || !studentEmail || !studentRollNo) {
+                setError("Cannot generate PDF: Missing required information.");
+                return;
+            }
+            setError(null);
 
-    // Create jsPDF document (custom ticket size)
-    const doc = new jsPDF({
-      orientation: "portrait",
-      unit: "mm",
-      format: [70, 160], // width, height
-    });
+            // Create jsPDF document (custom ticket size)
+            const doc = new jsPDF({
+                orientation: "portrait",
+                unit: "mm",
+                format: [100, 166.6], // width, height
+            });
 
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
 
-    // ----- Draw Top Purple Section -----
-    const purpleTopHeight = 105;
-    doc.setFillColor(108, 0, 255); // Deep purple background
-    doc.rect(0, 0, pageWidth, purpleTopHeight, "F");
+            // ----- Draw Top Purple Section -----
+            const purpleTopHeight = 105;
+            doc.setFillColor(108, 0, 255); // Deep purple background
+            doc.rect(0, 0, pageWidth, purpleTopHeight, "F");
 
-    // Add lighter wave overlay (simulate gradient look)
-    doc.setFillColor(155, 80, 255);
-    doc.triangle(0, purpleTopHeight - 20, pageWidth, purpleTopHeight - 45, pageWidth, purpleTopHeight, "F");
+            // Add lighter wave overlay (simulate gradient look)
+            doc.setFillColor(155, 80, 255);
+            doc.triangle(0, purpleTopHeight - 20, pageWidth, purpleTopHeight - 45, pageWidth, purpleTopHeight, "F");
 
-    // Add curved top/bottom notches
-    const notchRadius = 6;
-    doc.setFillColor(255, 255, 255);
-    doc.circle(pageWidth / 2, 0, notchRadius, "F"); // top notch
-    doc.circle(pageWidth / 2, pageHeight, notchRadius, "F"); // bottom notch
+            // Add curved top/bottom notches
+            const notchRadius = 6;
+            doc.setFillColor(255, 255, 255);
+            doc.circle(pageWidth / 2, 0, notchRadius, "F"); // top notch
+            doc.circle(pageWidth / 2, pageHeight, notchRadius, "F"); // bottom notch
 
-    // ----- Convert QR SVG → PNG -----
-    const svgBlob = new Blob([qrSvgString], { type: "image/svg+xml;charset=utf-8" });
-    const pngDataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const img: HTMLImageElement = document.createElement("img");
+            // ----- Convert QR SVG → PNG -----
+            const svgBlob = new Blob([qrSvgString], { type: "image/svg+xml;charset=utf-8" });
+            const pngDataUrl = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const img: HTMLImageElement = document.createElement("img");
 
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          const ctx = canvas.getContext("2d");
-          const size = 300;
-          canvas.width = size;
-          canvas.height = size;
-          if (!ctx) return reject("Canvas context not available");
-          ctx.fillStyle = "#fff";
-          ctx.fillRect(0, 0, size, size);
-          ctx.drawImage(img, 0, 0, size, size);
-          resolve(canvas.toDataURL("image/png"));
-        };
-        img.onerror = reject;
-        img.src = reader.result as string;
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(svgBlob);
-    });
+                    img.onload = () => {
+                        const canvas = document.createElement("canvas");
+                        const ctx = canvas.getContext("2d");
+                        const size = 300;
+                        canvas.width = size;
+                        canvas.height = size;
+                        if (!ctx) return reject("Canvas context not available");
+                        ctx.fillStyle = "#fff";
+                        ctx.fillRect(0, 0, size, size);
+                        ctx.drawImage(img, 0, 0, size, size);
+                        resolve(canvas.toDataURL("image/png"));
+                    };
+                    img.onerror = reject;
+                    img.src = reader.result as string;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(svgBlob);
+            });
 
-    // ----- Place QR -----
-    const qrSize = 38;
-    const qrX = (pageWidth - qrSize) / 2;
-    const qrY = 18;
-    doc.addImage(pngDataUrl, "PNG", qrX, qrY, qrSize, qrSize,);
+            // ----- Place QR -----
+            const qrSize = 38;
+            const qrX = (pageWidth - qrSize) / 2;
+            const qrY = 18;
+            doc.addImage(pngDataUrl, "PNG", qrX, qrY, qrSize, qrSize,);
 
-    // ----- Text: SCAN HERE -----
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.setTextColor(255, 255, 255);
-    doc.text("SCAN HERE!", pageWidth / 2, qrY + qrSize + 5, { align: "center" });
+            // ----- Text: SCAN HERE -----
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(9);
+            doc.setTextColor(255, 255, 255);
+            doc.text("SCAN HERE!", pageWidth / 2, qrY + qrSize + 5, { align: "center" });
 
-    // ----- Event Name -----
-    doc.setFontSize(14);
-    doc.text("CUK CONVOCATION 2025", pageWidth / 2, qrY + qrSize + 15, { align: "center" });
+            // ----- Event Name -----
+            doc.setFontSize(14);
+            doc.text("CUK CONVOCATION 2025", pageWidth / 2, qrY + qrSize + 15, { align: "center" });
 
-    doc.setFontSize(10);
-    doc.text("Central University of Kerala", pageWidth / 2, qrY + qrSize + 21, { align: "center" });
+            doc.setFontSize(10);
+            doc.text("Central University of Kerala", pageWidth / 2, qrY + qrSize + 21, { align: "center" });
 
-    // ----- Details paragraph -----
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    const infoText =
-      "Please present this ticket at the entrance for verification. Keep your QR code visible.";
-    const split = doc.splitTextToSize(infoText, pageWidth - 16);
-    doc.text(split, pageWidth / 2, qrY + qrSize + 30, { align: "center" });
+            // ----- Details paragraph -----
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(8);
+            const infoText =
+                "Please present this ticket at the entrance for verification. Keep your QR code visible.";
+            const split = doc.splitTextToSize(infoText, pageWidth - 16);
+            doc.text(split, pageWidth / 2, qrY + qrSize + 30, { align: "center" });
 
-    // ----- White bottom section -----
-    const whiteTop = purpleTopHeight;
-    doc.setFillColor(255, 255, 255);
-    doc.rect(0, whiteTop, pageWidth, pageHeight - whiteTop, "F");
+            // ----- White bottom section -----
+            const whiteTop = purpleTopHeight;
+            doc.setFillColor(255, 255, 255);
+            doc.rect(0, whiteTop, pageWidth, pageHeight - whiteTop, "F");
 
-    // ----- Student Details -----
-    doc.setTextColor(0, 0, 0);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.text("STUDENT DETAILS", pageWidth / 2, whiteTop + 12, { align: "center" });
+            // ----- Student Details -----
+            doc.setTextColor(0, 0, 0);
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(11);
+            doc.text("TICKET HOLDER DETAILS", pageWidth / 2, whiteTop + 10, { align: "center" }); // Centered title
 
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.text(`Name: ${studentName}`, 10, whiteTop + 25);
-    doc.text(`Email: ${studentEmail}`, 10, whiteTop + 33);
-    doc.text(`Roll No: ${studentRollNo}`, 10, whiteTop + 41);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
 
-    // ----- Footer -----
-    doc.setFontSize(8);
-    doc.setTextColor(120);
-    doc.text("CUK Convocation Ticket - 2025", pageWidth / 2, pageHeight - 8, { align: "center" });
+            // --- Dynamic Text Positioning ---
+            // --- Dynamic Text Positioning (Improved UI) ---
+            let currentY = whiteTop + 20;
+            const titleMargin = 6;
+            const lineSpacing = 6;
+            const leftMargin = 8;
+            const labelWidth = 24; // space for labels
 
-    // ----- Save PDF -----
-    doc.save(`CUK_Convocation_Ticket_${studentRollNo}.pdf`);
-    setError(null);
+            const drawDetail = (label: string, value: string) => {
+                doc.setFont("helvetica", "bold");
+                doc.text(`${label}:`, leftMargin, currentY);
 
-    await supabase.auth.signOut();
-  } catch (err) {
-    console.error("PDF generation failed:", err);
-    setError("Failed to generate ticket. Please try again.");
-  }
-};
+                doc.setFont("helvetica", "normal");
+                doc.text(value || "-", leftMargin + labelWidth, currentY);
+
+                currentY += lineSpacing;
+            };
+
+            // Student Details
+            drawDetail("Student", studentName);
+            drawDetail("Email", studentEmail);
+            drawDetail("Roll No", studentRollNo);
+
+            // Guests (only if exist)
+            if (guestOne) drawDetail("Guest 1", guestOne);
+            if (guestTwo) drawDetail("Guest 2", guestTwo);
+            // --- End Dynamic Text Positioning ---
+
+            // --- End Dynamic Text Positioning ---
+
+
+            // ----- Footer -----
+            doc.setFontSize(8);
+            doc.setTextColor(120);
+            doc.text("CUK Convocation Ticket - 2025", pageWidth / 2, pageHeight - 8, { align: "center" });
+
+            // ----- Save PDF -----
+            doc.save(`CUK_Convocation_Ticket_${studentRollNo}.pdf`);
+            setError(null);
+
+            await supabase.auth.signOut();
+        } catch (err) {
+            console.error("PDF generation failed:", err);
+            setError("Failed to generate ticket. Please try again.");
+        }
+    };
 
     // --- End PDF Function ---
 
