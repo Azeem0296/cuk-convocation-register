@@ -31,3 +31,7 @@ body {
   height: auto !important;
   max-width: 100%;
 }
+
+.ios-safe-area {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 14px);
+}
