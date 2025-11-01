@@ -1,34 +1,45 @@
 // app/form/page.tsx
-
 'use client';
+
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import Picker from "react-mobile-picker";
+
+
+const Spinner = () => (
+  <span className="flex items-center justify-center">
+    <div className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+  </span>
+);
 
 type FormMessage = { text: string; isSuccess: boolean } | null;
 
 const RegistrationPage: React.FC = () => {
-  const [fullName, setFullName] = useState<string>('');
-  const [email, setEmail] = useState<string>('');
-  const [department, setDepartment] = useState<string>('');
-  const [rollNumber, setRollNumber] = useState<string>('');
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [department, setDepartment] = useState('');
+  const [rollNumber, setRollNumber] = useState('');
 
   const [guests, setGuests] = useState<number | null>(null);
-  const [guestsError, setGuestsError] = useState<string>('');
+  const [guestsError, setGuestsError] = useState('');
 
-  // guardian fields
-  const [guardian1, setGuardian1] = useState<string>('');
-  const [guardian2, setGuardian2] = useState<string>('');
+  const [guardian1, setGuardian1] = useState('');
+  const [guardian2, setGuardian2] = useState('');
+  const [guardian1Error, setGuardian1Error] = useState('');
+  const [guardian2Error, setGuardian2Error] = useState('');
 
   const [formMessage, setFormMessage] = useState<FormMessage>(null);
-  const [infoMessage, setInfoMessage] = useState<string>('');
-  const [isFetchingProfile, setIsFetchingProfile] = useState<boolean>(true);
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [isAlreadyRegistered, setIsAlreadyRegistered] = useState<boolean>(false);
+  const [isFetchingProfile, setIsFetchingProfile] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAlreadyRegistered, setIsAlreadyRegistered] = useState(false);
+
+  const [showPicker, setShowPicker] = useState(false);
+  const [tempGuests, setTempGuests] = useState<string>(String(guests ?? ""));
+
 
   const router = useRouter();
 
-  // Fetch profile
   useEffect(() => {
     const loadProfile = async () => {
       const { data } = await supabase.auth.getSession();
@@ -61,7 +72,6 @@ const RegistrationPage: React.FC = () => {
           setGuests(profile?.guest_count ?? 0);
           setGuardian1(profile?.guardian1 ?? '');
           setGuardian2(profile?.guardian2 ?? '');
-          setFormMessage({ text: 'Registration Data Loaded', isSuccess: true });
         } else {
           setGuests(null);
         }
@@ -76,30 +86,17 @@ const RegistrationPage: React.FC = () => {
     loadProfile();
   }, [router]);
 
-  // Guest handler + clear guardian fields as needed
-  const handleGuestsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleGuestsChange = (value: string) => {
     if (isAlreadyRegistered) return;
 
-    const raw = e.target.value.replace(/[^0-9]/g, '').slice(0, 1);
-
-    if (raw === '') {
+    if (value === '') {
       setGuests(null);
-      setGuestsError('');
       setGuardian1('');
       setGuardian2('');
       return;
     }
 
-    const count = parseInt(raw, 10);
-
-    if (isNaN(count) || count < 0 || count > 2) {
-      setGuests(null);
-      setGuestsError('Number of guests must be between 0 and 2.');
-      setGuardian1('');
-      setGuardian2('');
-      return;
-    }
-
+    const count = parseInt(value);
     setGuests(count);
     setGuestsError('');
 
@@ -108,10 +105,10 @@ const RegistrationPage: React.FC = () => {
       setGuardian2('');
     } else if (count === 1) {
       setGuardian2('');
+      setGuardian2Error('');
     }
   };
 
-  // Submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isAlreadyRegistered || isFetchingProfile || isSubmitting) return;
@@ -121,11 +118,26 @@ const RegistrationPage: React.FC = () => {
       return;
     }
 
+    let hasError = false;
+
+    if (guests > 0 && !guardian1.trim()) {
+      setGuardian1Error('Guardian name is required');
+      hasError = true;
+    }
+
+    if (guests === 2 && !guardian2.trim()) {
+      setGuardian2Error('Guardian name is required');
+      hasError = true;
+    }
+
+    if (hasError) return;
+
     const { data } = await supabase.auth.getSession();
     const session = (data as any)?.session;
     if (!session) return router.push('/');
 
     setIsSubmitting(true);
+
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/register-student-by-auth`,
@@ -155,25 +167,6 @@ const RegistrationPage: React.FC = () => {
     }
   };
 
-  // typed profile fields array
-  const profileFields: { label: string; value: string }[] = [
-    { label: 'Full Name', value: fullName },
-    { label: 'Department', value: department },
-    { label: 'Email', value: email },
-    { label: 'Roll Number', value: rollNumber },
-  ];
-
-  const isFormValid =
-    guests !== null &&
-    guests >= 0 &&
-    guests <= 2 &&
-    fullName.trim() !== '' &&
-    email.trim() !== '' &&
-    rollNumber.trim() !== '' &&
-    department.trim() !== '';
-
-  const disableBtn = isFetchingProfile || isSubmitting || !isFormValid || isAlreadyRegistered;
-
   return (
     <div
       className="relative flex items-center justify-center min-h-screen p-4 bg-cover bg-center"
@@ -182,6 +175,7 @@ const RegistrationPage: React.FC = () => {
       <div className="absolute inset-0 bg-black/50"></div>
 
       <div className="relative z-10 w-full max-w-lg p-6 sm:p-10 bg-black/30 backdrop-blur-lg rounded-xl shadow-xl border border-white/20">
+
         <div className="text-center mb-8">
           <img src="/cuk-logo.png" alt="CUK" className="mx-auto mb-4 w-20 h-20 rounded-full" />
           <h1 className="text-2xl sm:text-3xl font-bold text-white">Central University of Kerala</h1>
@@ -189,25 +183,18 @@ const RegistrationPage: React.FC = () => {
         </div>
 
         <form onSubmit={handleSubmit}>
-          {infoMessage && (
-            <div className="mb-4 p-3 rounded bg-green-500/60 text-white text-center">{infoMessage}</div>
-          )}
-
-          {formMessage && !formMessage.isSuccess && (
-            <div className="mb-4 p-3 rounded bg-red-500/60 text-white text-center">
-              {formMessage.text}
-            </div>
-          )}
-
-          {isFetchingProfile && <p className="text-center text-gray-200">Loading...</p>}
-
           {!isFetchingProfile && (
             <div className="space-y-5">
-              {profileFields.map(({ label, value }) => (
+              {[
+                { label: 'Full Name', value: fullName },
+                { label: 'Department', value: department },
+                { label: 'Email', value: email },
+                { label: 'Roll Number', value: rollNumber }
+              ].map(({ label, value }) => (
                 <div key={label}>
                   <label className="block text-sm text-gray-200 mb-1">{label}</label>
                   <input
-                    value={String(value)}
+                    value={value}
                     readOnly
                     disabled
                     className="w-full px-4 py-2 bg-gray-800 text-gray-400 border border-gray-600 rounded cursor-not-allowed"
@@ -215,56 +202,94 @@ const RegistrationPage: React.FC = () => {
                 </div>
               ))}
 
+              {/* Guests dropdown */}
+              {/* Guests */}
               <div>
                 <label className="block text-sm text-gray-200 mb-1">Number of Guests (Max 2)</label>
-                <input
-                  type="number"
-                  value={guests ?? ''}
-                  onChange={handleGuestsChange}
+
+                {/* iOS Picker Trigger */}
+                <button
+                  type="button"
                   disabled={isAlreadyRegistered}
+                  onClick={() => setShowPicker(true)}
                   className="w-full px-4 py-2 bg-gray-700 text-white border border-gray-600 rounded"
-                  placeholder="0"
-                />
+                >
+                  {guests === null ? "Select Guests" : `${guests} Guest${guests > 1 ? "s" : ""}`}
+                </button>
+
                 {guestsError && <p className="text-red-400 text-xs mt-1">{guestsError}</p>}
               </div>
 
-              {/* Guardian fields conditionally shown */}
-              {guests === 1 && (
-                <div>
-                  <label className="block text-sm text-gray-200 mb-1">Guardian Name 1</label>
-                  <input
-                    type="text"
-                    value={guardian1}
-                    onChange={(e) => setGuardian1(e.target.value)}
-                    className="w-full px-4 py-2 bg-gray-700 text-white border border-gray-600 rounded"
-                    placeholder="Enter Guardian Name"
-                  />
+              {/* iOS Picker Modal */}
+              {showPicker && (
+                <div className="fixed inset-0 z-50 flex items-end bg-black/50 backdrop-blur-sm">
+                  {/* Bottom Sheet */}
+                  <div className="w-full bg-[#0f172a] text-white rounded-t-2xl rounded-b-2xl overflow-hidden shadow-xl pb-8 ios-safe-area">
+                    <div className="flex justify-between items-center p-4">
+                      <button
+                        onClick={() => setShowPicker(false)}
+                        className="text-gray-300 text-sm"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => {
+                          setGuests(Number(tempGuests));
+                          handleGuestsChange(tempGuests);
+                          setShowPicker(false);
+                        }}
+                        className="text-blue-400 font-semibold text-sm"
+                      >
+                        Done
+                      </button>
+                    </div>
+
+                    <Picker
+                      value={{ guests: tempGuests }}
+                      onChange={(v) => setTempGuests(v.guests)}
+                      height={200} // smooth iOS height
+                    >
+                      <Picker.Column name="guests">
+                        <Picker.Item value="" disabled>Select</Picker.Item>
+                        <Picker.Item value="0">0</Picker.Item>
+                        <Picker.Item value="1">1</Picker.Item>
+                        <Picker.Item value="2">2</Picker.Item>
+                      </Picker.Column>
+                    </Picker>
+                  </div>
                 </div>
               )}
 
-              {guests === 2 && (
+
+
+              {/* Guardian Names */}
+              {guests! > 0 && (
                 <>
                   <div>
                     <label className="block text-sm text-gray-200 mb-1">Guardian Name 1</label>
                     <input
                       type="text"
                       value={guardian1}
-                      onChange={(e) => setGuardian1(e.target.value)}
+                      onChange={(e) => { setGuardian1(e.target.value); setGuardian1Error(''); }}
                       className="w-full px-4 py-2 bg-gray-700 text-white border border-gray-600 rounded"
-                      placeholder="Enter Guardian Name"
+                      placeholder="Guardian 1 Name"
                     />
+                    {guardian1Error && <p className="text-red-400 text-xs mt-1">{guardian1Error}</p>}
                   </div>
 
-                  <div>
-                    <label className="block text-sm text-gray-200 mb-1">Guardian Name 2</label>
-                    <input
-                      type="text"
-                      value={guardian2}
-                      onChange={(e) => setGuardian2(e.target.value)}
-                      className="w-full px-4 py-2 bg-gray-700 text-white border border-gray-600 rounded"
-                      placeholder="Enter Guardian Name"
-                    />
-                  </div>
+                  {guests === 2 && (
+                    <div>
+                      <label className="block text-sm text-gray-200 mb-1">Guardian Name 2</label>
+                      <input
+                        type="text"
+                        value={guardian2}
+                        onChange={(e) => { setGuardian2(e.target.value); setGuardian2Error(''); }}
+                        className="w-full px-4 py-2 bg-gray-700 text-white border border-gray-600 rounded"
+                        placeholder="Guardian 2 Name"
+                      />
+                      {guardian2Error && <p className="text-red-400 text-xs mt-1">{guardian2Error}</p>}
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -274,8 +299,14 @@ const RegistrationPage: React.FC = () => {
             <button
               type="submit"
               className="w-full mt-6 py-3 rounded text-white font-medium bg-blue-600 hover:bg-blue-700"
-              >
-              {isSubmitting ? 'Processing...' : 'Register'}
+            >
+              {isSubmitting ? (
+                <div className="flex items-center justify-center w-full">
+                  <Spinner />
+                </div>
+              ) : (
+                "Register"
+              )}
             </button>
           )}
         </form>
